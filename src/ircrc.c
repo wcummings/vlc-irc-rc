@@ -380,9 +380,6 @@ struct irc_msg_t *ParseIRC(char *line)
     ch = strtok_r(NULL, ":", &sv_ptr);
     if(ch != NULL)
       irc_msg->trailing = strdup(ch); /* gram trailing */
-    else { /* theres only one token, must be trailing */
-      irc_msg->trailing = irc_msg->params;
-      irc_msg->params = NULL;
     }
   } else {
     ch = strtok_r(NULL, "", &sv_ptr);
