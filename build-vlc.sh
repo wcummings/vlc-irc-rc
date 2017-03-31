@@ -19,7 +19,7 @@ fi
 cp $CWD/src/ircrc.c modules/control/
 
 if ! grep --quiet SOURCES_ircrc modules/control/Modules.am; then
-    echo -ne 'SOURCES_ircrc = ircrc.c\ncontrol_LTLIBRARIES += libircrc_plugin.la\n' >> modules/control/Modules.am
+    echo -ne 'libircrc_plugin_la_SOURCES = ircrc.c\ncontrol_LTLIBRARIES += libircrc_plugin.la\n' >> modules/control/Modules.am
 fi
 
 ./bootstrap
