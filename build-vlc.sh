@@ -12,7 +12,14 @@ fi
 
 if [ ! -d vlc-$VLC_VERSION ]; then
     tar xfJ $VLC_ARCHIVE
-    cd vlc-$VLC_VERSION
+fi
+
+cd vlc-$VLC_VERSION
+
+if [ "$1" == "--update" ]; then
+    cp $CWD/src/ircrc.c modules/control/
+    make
+    exit 0;
 fi
 
 ./configure --disable-qt
