@@ -1,10 +1,15 @@
 #!/bin/sh
-VLC_URL=http://download.videolan.org/pub/videolan/vlc/2.0.3/vlc-2.0.3.tar.xz
+VLC_VERSION=2.0.3
+VLC_ARCHIVE=vlc-$VLC_VERSION.tar.xz
+VLC_URL=http://download.videolan.org/pub/videolan/vlc/$VLC_VERSION/$VLC_ARCHIVE
 CWD=$(pwd)
 
-mkdir build
+mkdir -p build
 cd build
-wget $VLC_URL
+if [ ! -f "./$VLC_ARCHIVE" ]; then
+    wget $VLC_URL -O $VLC_ARCHIVE
+fi
+rm -r vlc-2.0.3
 tar xfJ vlc-2.0.3.tar.xz
 cd vlc-2.0.3
 ./configure
