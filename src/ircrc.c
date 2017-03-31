@@ -16,10 +16,10 @@
 #define SEND_BUFFER_LEN 8096
 
 struct circular_buffer {
-  void *buffer;
-  void *buffer_end;
-  void *head;
-  void *tail;
+  char *buffer;
+  char *buffer_end;
+  char *head;
+  char *tail;
 };
 
 struct intf_sys_t
@@ -318,7 +318,6 @@ void irc_PING(void *handle, struct irc_msg_t *irc_msg)
 void irc_PRIVMSG(void *handle, struct irc_msg_t *irc_msg)
 {
   intf_thread_t *intf = (intf_thread_t*)handle;
-  intf_sys_t *sys = intf->p_sys;
 
   char *msg = irc_msg->trailing;
 
@@ -336,10 +335,9 @@ void irc_PRIVMSG(void *handle, struct irc_msg_t *irc_msg)
     
     if(var_Type(intf, cmd) & VLC_VAR_ISCOMMAND) {
       vlc_value_t val;
-      int ret;
       val.psz_string = psz_arg;
       if ((var_Type(intf, psz_cmd) & VLC_VAR_CLASS) == VLC_VAR_VOID) {
-	ret = var_TriggerCallback(intf, psz_cmd);
+	var_TriggerCallback(intf, psz_cmd);
       } else { // STRING
 	var_Set(intf, psz_cmd, val);
       }
@@ -452,6 +450,8 @@ static int Playlist(vlc_object_t *obj, char const *cmd,
     playlist_Stop(sys->playlist);
     playlist_Clear(sys->playlist, pl_Unlocked);
   }
+
+  return VLC_SUCCESS;
 }
 
 void SendBufferInit(vlc_object_t *obj)
@@ -463,8 +463,8 @@ void SendBufferInit(vlc_object_t *obj)
 
   struct circular_buffer *send_buffer = sys->send_buffer;
 
-  send_buffer->buffer = (void *)malloc(SEND_BUFFER_LEN);
-  send_buffer->buffer_end = (void *)send_buffer->buffer+SEND_BUFFER_LEN;
+  send_buffer->buffer = (char*)malloc(SEND_BUFFER_LEN);
+  send_buffer->buffer_end = (char*)send_buffer->buffer+SEND_BUFFER_LEN;
   send_buffer->head = send_buffer->buffer;
   send_buffer->tail = send_buffer->buffer;
 }
