@@ -10,6 +10,7 @@
 #include <vlc_interface.h>
 #include <vlc_network.h>
 #include <vlc_playlist.h>
+#include <vlc_url.h>
 
 #define MAX_LINE 8096
 #define SEND_BUFFER_LEN 8096
@@ -65,6 +66,8 @@ static void Run(intf_thread_t *intf);
 static int Playlist(vlc_object_t *, char const *, vlc_value_t, vlc_value_t, void *);
 static void RegisterCallbacks(intf_thread_t *);
 void FreeIRCMsg(struct irc_msg_t *irc_msg);
+int SplitString(char* str, char *delim, char **chs, int max_size);
+static input_item_t *parse_MRL( const char *mrl );
 
 vlc_module_begin()
     set_shortname("IRC")
@@ -321,22 +324,28 @@ void irc_PRIVMSG(void *handle, struct irc_msg_t *irc_msg)
 
   if(msg[0] == '>') {
     char *cmd = msg+1;
+    char *tokens[2];
+    int size = SplitString(cmd, " ", &tokens, 2);
+    char *psz_cmd = tokens[0];
+    char *psz_arg;
+    if (size < 1) {
+      psz_arg = (char*)"";
+    } else {
+      psz_arg = tokens[1];
+    }
+    
     if(var_Type(intf, cmd) & VLC_VAR_ISCOMMAND) {
       vlc_value_t val;
-      var_Set(intf, cmd, val);
+      int ret;
+      val.psz_string = psz_arg;
+      if ((var_Type(intf, psz_cmd) & VLC_VAR_CLASS) == VLC_VAR_VOID) {
+	ret = var_TriggerCallback(intf, psz_cmd);
+      } else { // STRING
+	var_Set(intf, psz_cmd, val);
+      }
     }
   }
 }
-
-/*
-void ResizeSendBuffer(void *handle)
-{
-  intf_thread_t *intf = (intf_thread_t*)handle;
-  intf_sys_t *sys = intf->p_sys;
-  
-  sys->send_buffer = (char *)realloc(sys->send_buffer, sys->send_buffer_len * sizeof(char));  
-}
-*/
 
 /* im so sorry */
 struct irc_msg_t *ParseIRC(char *line)
@@ -388,8 +397,12 @@ static void RegisterCallbacks(intf_thread_t *intf)
 #define ADD( name, type, target )                                   \
   var_Create(intf, name, VLC_VAR_ ## type | VLC_VAR_ISCOMMAND ); \
   var_AddCallback(intf, name, target, NULL );
-    ADD("play", VOID, Playlist)
-    ADD("pause", VOID, Playlist)
+      ADD("play", VOID, Playlist)
+      ADD("pause", VOID, Playlist)
+      ADD("enqueue", STRING, Playlist)
+      ADD("next", VOID, Playlist)
+      ADD("prev", VOID, Playlist)
+      ADD("clear", VOID, Playlist)
 #undef ADD
 }
 
@@ -418,6 +431,23 @@ static int Playlist(vlc_object_t *obj, char const *cmd,
     msg_Info(intf, "Play");
     if(state != PLAYING_S)
       playlist_Play(sys->playlist);
+  } else if (strcmp(cmd, "enqueue") == 0 && newval.psz_string && *newval.psz_string) {
+    input_item_t *p_item = parse_MRL(newval.psz_string);
+    if(p_item) {
+      msg_Info(intf,  "Trying to enqueue %s to playlist", newval.psz_string );
+      if (playlist_AddInput(sys->playlist, p_item,
+			    PLAYLIST_APPEND, PLAYLIST_END, true,
+			    pl_Unlocked ) != VLC_SUCCESS) {
+	return VLC_EGENERIC;
+      }
+    }
+  } else if(strcmp(cmd, "next") == 0) {
+    playlist_Next(sys->playlist);
+  } else if(strcmp(cmd, "prev") == 0) {
+    playlist_Prev(sys->playlist);
+  } else if(strcmp(cmd, "clear") == 0) {
+    playlist_Stop(sys->playlist);
+    playlist_Clear(sys->playlist, pl_Unlocked);
   }
 }
 
@@ -454,4 +484,110 @@ void SendBufferAppend(void *handle, char *data)
     memcpy(send_buffer->head, data, data_len);
     send_buffer->head += data_len;
   }
+}
+
+int SplitString(char* str, char *delim, char *chs[], int max_size) {
+  char *ch = strtok(str, delim);
+  int i = 0;
+  while (ch != NULL && i < max_size) {
+    chs[i] = ch;
+    ch = strtok(NULL, delim);
+    i++;
+  }
+  return i;
+}
+
+/*
+ * Shamelessly stolen from rc.c
+ */
+
+/*****************************************************************************
+ * parse_MRL: build a input item from a full mrl
+ *****************************************************************************
+ * MRL format: "simplified-mrl [:option-name[=option-value]]"
+ * We don't check for '"' or '\'', we just assume that a ':' that follows a
+ * space is a new option. Should be good enough for our purpose.
+ *****************************************************************************/
+static input_item_t *parse_MRL( const char *mrl )
+{
+#define SKIPSPACE( p ) { while( *p == ' ' || *p == '\t' ) p++; }
+#define SKIPTRAILINGSPACE( p, d ) \
+    { char *e=d; while( e > p && (*(e-1)==' ' || *(e-1)=='\t') ){e--;*e=0;} }
+
+    input_item_t *p_item = NULL;
+    char *psz_item = NULL, *psz_item_mrl = NULL, *psz_orig, *psz_mrl;
+    char **ppsz_options = NULL;
+    int i, i_options = 0;
+
+    if( !mrl ) return 0;
+
+    psz_mrl = psz_orig = strdup( mrl );
+    if( !psz_mrl )
+        return NULL;
+    while( *psz_mrl )
+    {
+        SKIPSPACE( psz_mrl );
+        psz_item = psz_mrl;
+
+        for( ; *psz_mrl; psz_mrl++ )
+        {
+            if( (*psz_mrl == ' ' || *psz_mrl == '\t') && psz_mrl[1] == ':' )
+            {
+                /* We have a complete item */
+                break;
+            }
+            if( (*psz_mrl == ' ' || *psz_mrl == '\t') &&
+                (psz_mrl[1] == '"' || psz_mrl[1] == '\'') && psz_mrl[2] == ':')
+            {
+                /* We have a complete item */
+                break;
+            }
+        }
+
+        if( *psz_mrl ) { *psz_mrl = 0; psz_mrl++; }
+        SKIPTRAILINGSPACE( psz_item, psz_item + strlen( psz_item ) );
+
+        /* Remove '"' and '\'' if necessary */
+        if( *psz_item == '"' && psz_item[strlen(psz_item)-1] == '"' )
+        { psz_item++; psz_item[strlen(psz_item)-1] = 0; }
+        if( *psz_item == '\'' && psz_item[strlen(psz_item)-1] == '\'' )
+        { psz_item++; psz_item[strlen(psz_item)-1] = 0; }
+
+        if( !psz_item_mrl )
+        {
+            if( strstr( psz_item, "://" ) != NULL )
+                psz_item_mrl = strdup( psz_item );
+            else
+                psz_item_mrl = vlc_path2uri( psz_item, NULL );
+            if( psz_item_mrl == NULL )
+            {
+                free( psz_orig );
+                return NULL;
+            }
+        }
+        else if( *psz_item )
+        {
+            i_options++;
+            ppsz_options = xrealloc( ppsz_options, i_options * sizeof(char *) );
+            ppsz_options[i_options - 1] = &psz_item[1];
+        }
+
+        if( *psz_mrl ) SKIPSPACE( psz_mrl );
+    }
+
+    /* Now create a playlist item */
+    if( psz_item_mrl )
+    {
+        p_item = input_item_New( psz_item_mrl, NULL );
+        for( i = 0; i < i_options; i++ )
+        {
+            input_item_AddOption( p_item, ppsz_options[i], VLC_INPUT_OPTION_TRUSTED );
+        }
+        free( psz_item_mrl );
+    }
+
+    if( i_options ) free( ppsz_options );
+    free( psz_orig );
+
+    return p_item;
 }
