@@ -28,7 +28,7 @@ This is a hack, if you start vlc without a file in its playlist with this enable
 Add
 
 <pre>
-SOURCES_ircrc = ircrc.c
+libircrc_plugin_la_SOURCES = ircrc.c
 control_LTLIBRARIES += \
         libircrc_plugin.la
 </pre>
