@@ -1,7 +1,7 @@
 vlc-irc-rc
 ==========
 
-Control your VLC with your IRC, bro.
+Control your VLC with your IRC.
 
 building
 --------
@@ -29,7 +29,7 @@ Add
 
 <pre>
 SOURCES_ircrc = ircrc.c
-libvlc_LTLIBRARIES += \
+control_LTLIBRARIES += \
         libircrc_plugin.la
 </pre>
 
