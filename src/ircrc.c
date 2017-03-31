@@ -322,7 +322,7 @@ void irc_PRIVMSG(void *handle, struct irc_msg_t *irc_msg)
 
   char *msg = irc_msg->trailing;
 
-  if(msg[0] == '>') {
+  if(msg[0] == '!') {
     char *cmd = msg+1;
     char *tokens[2];
     int size = SplitString(cmd, " ", &tokens, 2);
@@ -442,10 +442,13 @@ static int Playlist(vlc_object_t *obj, char const *cmd,
       }
     }
   } else if(strcmp(cmd, "next") == 0) {
+    msg_Info(intf, "Next");
     playlist_Next(sys->playlist);
   } else if(strcmp(cmd, "prev") == 0) {
+    msg_Info(intf, "Prev");    
     playlist_Prev(sys->playlist);
   } else if(strcmp(cmd, "clear") == 0) {
+    msg_Info(intf, "Clear");
     playlist_Stop(sys->playlist);
     playlist_Clear(sys->playlist, pl_Unlocked);
   }
