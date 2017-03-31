@@ -431,7 +431,7 @@ static int Playlist(vlc_object_t *obj, char const *cmd,
     msg_Info(intf, "Play");
     if(state != PLAYING_S)
       playlist_Play(sys->playlist);
-  } else if (strcmp(cmd, "enqueue") == 0 && newval.psz_string && *newval.psz_string) {
+  } else if(strcmp(cmd, "enqueue") == 0 && newval.psz_string && *newval.psz_string) {
     input_item_t *p_item = parse_MRL(newval.psz_string);
     if(p_item) {
       msg_Info(intf,  "Trying to enqueue %s to playlist", newval.psz_string );
@@ -492,7 +492,7 @@ void SendBufferAppend(void *handle, char *data)
 int SplitString(char* str, char *delim, char *chs[], int max_size) {
   char *ch = strtok(str, delim);
   int i = 0;
-  while (ch != NULL && i < max_size) {
+  while(ch != NULL && i < max_size) {
     chs[i] = ch;
     ch = strtok(NULL, delim);
     i++;
