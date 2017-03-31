@@ -62,11 +62,11 @@ void SendBufferAppend(void *, char *);
 void ResizeSendBuffer(void *);
 struct irc_msg_t *ParseIRC(char *);
 void SendBufferInit(vlc_object_t *obj);
-static void Run(intf_thread_t *intf);
+static void *Run(void *);
 static int Playlist(vlc_object_t *, char const *, vlc_value_t, vlc_value_t, void *);
 static void RegisterCallbacks(intf_thread_t *);
 void FreeIRCMsg(struct irc_msg_t *irc_msg);
-int SplitString(char* str, char *delim, char **chs, int max_size);
+int SplitString(char* str, char *delim, char *chs[], int max_size);
 static input_item_t *parse_MRL( const char *mrl );
 
 vlc_module_begin()
@@ -125,8 +125,9 @@ static void Close(vlc_object_t *obj)
     free(sys);
 }
 
-static void Run(intf_thread_t *intf)
+static void *Run(void* handle)
 {
+  intf_thread_t *intf = (intf_thread_t*)handle;
   intf_sys_t *sys = intf->p_sys;
   int fd;
 
@@ -141,7 +142,7 @@ static void Run(intf_thread_t *intf)
 
     if(fd == -1) {
       msg_Err(intf, "Error connecting to server");
-      return;
+      return NULL;
     }
 
     msg_Info(intf, "Connected to server");
@@ -150,15 +151,15 @@ static void Run(intf_thread_t *intf)
     sys->fd = fd;
     sys->line_loc = 0;
 
-    SendBufferInit(intf);
+    SendBufferInit((vlc_object_t*)intf);
 
-    SendBufferAppend(intf, "NICK ");
+    SendBufferAppend(intf, (char*)"NICK ");
     SendBufferAppend(intf, sys->nick);
-    SendBufferAppend(intf, "\r\n");
+    SendBufferAppend(intf, (char*)"\r\n");
 
-    SendBufferAppend(intf, "USER ");
+    SendBufferAppend(intf, (char*)"USER ");
     SendBufferAppend(intf, sys->nick);
-    SendBufferAppend(intf, " 8 * vlc\r\n");
+    SendBufferAppend(intf, (char*)" 8 * vlc\r\n");
 
     sys->playlist = pl_Get(intf);
 
@@ -178,6 +179,8 @@ static void Run(intf_thread_t *intf)
   free(sys);
 
   vlc_restorecancel(canc);
+
+  return NULL;
 }
 
 void EventLoop(int fd, void *handle)
@@ -278,9 +281,9 @@ void LineReceived(void *handle, char *line)
   }
     
   if(strcmp(irc_msg->command, "376") == 0) { /* End of MotD */
-    SendBufferAppend(handle, "JOIN ");
+    SendBufferAppend(handle, (char*)"JOIN ");
     SendBufferAppend(handle, sys->channel);
-    SendBufferAppend(handle, "\r\n");
+    SendBufferAppend(handle, (char*)"\r\n");
   } else if(strcmp(irc_msg->command, "PING") == 0) {
     irc_PING(handle, irc_msg);
   } else if(strcmp(irc_msg->command, "PRIVMSG") == 0) {
@@ -310,9 +313,9 @@ void FreeIRCMsg(struct irc_msg_t *irc_msg)
 
 void irc_PING(void *handle, struct irc_msg_t *irc_msg)
 {
-  SendBufferAppend(handle, "PONG :");
+  SendBufferAppend(handle, (char*)"PONG :");
   SendBufferAppend(handle, irc_msg->trailing);
-  SendBufferAppend(handle, "\r\n");
+  SendBufferAppend(handle, (char*)"\r\n");
 }
 
 void irc_PRIVMSG(void *handle, struct irc_msg_t *irc_msg)
@@ -324,7 +327,7 @@ void irc_PRIVMSG(void *handle, struct irc_msg_t *irc_msg)
   if(msg[0] == '!') {
     char *cmd = msg+1;
     char *tokens[2];
-    int size = SplitString(cmd, " ", &tokens, 2);
+    int size = SplitString(cmd, (char*)" ", tokens, 2);
     char *psz_cmd = tokens[0];
     char *psz_arg;
     if (size < 1) {
