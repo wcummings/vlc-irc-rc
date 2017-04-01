@@ -19,6 +19,7 @@ cd vlc-$VLC_VERSION
 if [ "$1" == "--update" ]; then
     cp $CWD/src/ircrc.c modules/control/
     make
+    cd $CWD    
     exit 0;
 fi
 
@@ -32,3 +33,5 @@ fi
 ./bootstrap
 ./configure
 make
+
+cd $CWD
