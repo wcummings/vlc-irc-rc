@@ -25,7 +25,7 @@ fi
 ./configure --disable-qt
 cp $CWD/src/ircrc.c modules/control/
 
-if ! grep --quiet SOURCES_ircrc modules/control/Modules.am; then
+if ! grep --quiet libircrc_plugin_la_SOURCES modules/control/Modules.am; then
     echo -ne 'libircrc_plugin_la_SOURCES = ircrc.c\ncontrol_LTLIBRARIES += libircrc_plugin.la\n' >> modules/control/Modules.am
 fi
 
