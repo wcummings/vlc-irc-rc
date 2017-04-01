@@ -60,7 +60,8 @@ void irc_PING(void *, struct irc_msg_t *);
 void irc_PRIVMSG(void *handle, struct irc_msg_t *irc_msg);
 void SendBufferAppend(void *, char *);
 void ResizeSendBuffer(void *);
-struct irc_msg_t *ParseIRC(char *);
+int IndexOf(char *, char);
+struct irc_msg_t *ParseIRC(char *, intf_thread_t *intf);
 void SendBufferInit(vlc_object_t *obj);
 static void *Run(void *);
 static int Playlist(vlc_object_t *, char const *, vlc_value_t, vlc_value_t, void *);
@@ -271,9 +272,9 @@ void LineReceived(void *handle, char *line)
   intf_thread_t *intf = (intf_thread_t*)handle;
   intf_sys_t *sys = intf->p_sys;
 
-  msg_Dbg(intf, "Line received: %s", line);
+  msg_Info(intf, "Line received: %s", line);
 
-  struct irc_msg_t *irc_msg = ParseIRC(line);
+  struct irc_msg_t *irc_msg = ParseIRC(line, intf);
 
   if(irc_msg == NULL) {
     msg_Dbg(intf, "Malformed IRC message: %s", line);
@@ -348,42 +349,59 @@ void irc_PRIVMSG(void *handle, struct irc_msg_t *irc_msg)
   }
 }
 
-/* im so sorry */
-struct irc_msg_t *ParseIRC(char *line)
-{
-  struct irc_msg_t *irc_msg = (struct irc_msg_t *)malloc(sizeof(struct irc_msg_t));
-  char *ch, *sv_ptr;
-  int started = 0;
+int IndexOf(char *s, char d) {
+  int offset = 0;
+  while(s[offset] != d) {
+    if(s[offset] == '\0') {
+      return -1;
+    }
+    offset++;
+  }
+  return offset;
+}
 
+struct irc_msg_t *ParseIRC(char *line, intf_thread_t *intf) {
+  struct irc_msg_t *irc_msg = (struct irc_msg_t *)malloc(sizeof(struct irc_msg_t));
   irc_msg->prefix = irc_msg->command = irc_msg->params = irc_msg->trailing = NULL;
 
+  int o = 0;
+  
   if(line[0] == ':') { /* check for prefix */
-    *line = line[1];
-    ch = strtok_r(line, " ", &sv_ptr); /* grab prefix */
-    started = 1;
-    if(ch != NULL)
-      irc_msg->prefix = strdup(ch);
-    else
-      return NULL; /* malformed IRC message */
+    line++;
+
+    o = IndexOf(line, ' ');
+    if(o == -1) {
+      return NULL;
+    }
+
+    irc_msg->prefix = (char*)malloc(sizeof(char) * (o + 1));
+    strncpy(irc_msg->prefix, line, o);
+    irc_msg->prefix[o] = '\0';      
+    line += o + 1;
   }
 
-  if(started)
-    ch = strtok_r(NULL, " ", &sv_ptr); /* grab command */
-  else
-    ch = strtok_r(line, " ", &sv_ptr);
+  o = IndexOf(line, ' ');
+  if(o == -1) {
+    return NULL;
+  }
 
-  irc_msg->command = strdup(ch);
+  irc_msg->command = (char*)malloc(sizeof(char) * (o + 1));
+  strncpy(irc_msg->command, line, o);
+  irc_msg->command[o] = '\0';  
 
-  ch = strtok_r(NULL, ":", &sv_ptr); /* check for trailing */
-  if(ch != NULL) {
-    irc_msg->params = strdup(ch); /* grab params */
-    ch = strtok_r(NULL, ":", &sv_ptr);
-    if(ch != NULL)
-      irc_msg->trailing = strdup(ch); /* gram trailing */
-    }
+  line += o + 1;
+
+  o = IndexOf(line, ':');
+  if(o == -1) { /* No trailing */
+    irc_msg->params = (char*)malloc(sizeof(char) * strlen(line) + 1);
+    strcpy(irc_msg->params, line);
   } else {
-    ch = strtok_r(NULL, "", &sv_ptr);
-    irc_msg->params = strdup(ch); /* grab params */
+    irc_msg->params = (char*)malloc(sizeof(char) * (o + 1));
+    strncpy(irc_msg->params, line, o);
+    irc_msg->params[o] = '\0';
+    line += o + 1;
+    irc_msg->trailing = (char*)malloc(sizeof(char) * strlen(line) + 1);
+    strcpy(irc_msg->trailing, line);
   }
 
   return irc_msg;
