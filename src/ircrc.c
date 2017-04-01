@@ -263,6 +263,7 @@ int HandleWrite(void *handle)
 
   if(send_buffer->tail - send_buffer->buffer == SEND_BUFFER_LEN) {
     send_buffer->tail = send_buffer->buffer;
+    return HandleWrite(handle);
   }
 
   return 0;
