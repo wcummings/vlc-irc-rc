@@ -45,4 +45,3 @@ A few playlist commands are currently supported
 If you modify ircrc.c after building, run ``./build-vlc.sh --update'' to
 just copy the file and invoke make without reconfiguring.
 
-*** TODO More commands
