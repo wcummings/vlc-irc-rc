@@ -1,0 +1,44 @@
+* vlc-irc-rc
+
+Control your VLC with your IRC.
+
+** Building
+
+I've included build-vlc.sh, which will download vlc and perform
+in-tree compilation including ircrc. If it doesn't work it at least
+serves as documentation for the build process. You can also perform
+[[https://wiki.videolan.org/OutOfTreeCompile/][out-of-tree compilation]].
+
+    1. Download the [[http://www.videolan.org/vlc/download-sources.html][latest VLC sources]] and install its build dependenices
+    2. Extract vlc and run ./configure
+    3. Copy src/ircrc.c to modules/control/ in the vlc source directory
+    4. Add the following lines to modules/control/Modules.am:
+       #+begin_src bash
+       libircrc_plugin_la_SOURCES = ircrc.c
+       control_LTLIBRARIES += libircrc_plugin.la
+       #+end_src
+
+       To the end.
+    5. Run ``./bootstrap && ./configure && make'' in the vlc directory
+
+** Usage
+
+#+begin_src bash
+vlc -I ircrc --server your.irc.server --channel "#yourchannel" --nick some_nickname yourfile.avi
+#+end_src
+
+** Commands
+
+A few playlist commands are currently supported
+
+    + !play
+    + !pause
+    + !next
+    + !prev
+    + !enqueue <MRL>
+    + !clear
+
+** Hacking
+
+If you modify ircrc.c after building, run ``./build-vlc.sh --update'' to
+just copy the file and invoke make without reconfiguring.
