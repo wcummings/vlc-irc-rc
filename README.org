@@ -37,6 +37,8 @@ A few playlist commands are currently supported
     + !prev
     + !enqueue <MRL>
     + !clear
+    + !playlist
+    + !status
 
 ** Hacking
 
