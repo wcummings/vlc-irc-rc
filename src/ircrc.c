@@ -68,6 +68,7 @@ static int Playlist(vlc_object_t *, char const *, vlc_value_t, vlc_value_t, void
 static void RegisterCallbacks(intf_thread_t *);
 void FreeIRCMsg(struct irc_msg_t *irc_msg);
 int SplitString(char* str, char *delim, char *chs[], int max_size);
+void SendMessage(void *handle, char *message);
 static input_item_t *parse_MRL( const char *mrl );
 
 vlc_module_begin()
@@ -441,12 +442,16 @@ static int Playlist(vlc_object_t *obj, char const *cmd,
 
   if(strcmp(cmd, "pause") == 0) {
     msg_Info(intf, "Pause");    
-    if(state == PLAYING_S)
+    if(state == PLAYING_S) {
       playlist_Pause(sys->playlist);
+      SendMessage(intf, "Paused");
+    }
   } else if(strcmp(cmd, "play") == 0) {
     msg_Info(intf, "Play");
-    if(state != PLAYING_S)
+    if(state != PLAYING_S) {
       playlist_Play(sys->playlist);
+      SendMessage(intf, "Playing");
+    }
   } else if(strcmp(cmd, "enqueue") == 0 && newval.psz_string && *newval.psz_string) {
     input_item_t *p_item = parse_MRL(newval.psz_string);
     if(p_item) {
@@ -456,15 +461,19 @@ static int Playlist(vlc_object_t *obj, char const *cmd,
 			    pl_Unlocked ) != VLC_SUCCESS) {
 	return VLC_EGENERIC;
       }
+      SendMessage(intf, "Enqueued");
     }
   } else if(strcmp(cmd, "next") == 0) {
     msg_Info(intf, "Next");
+    SendMessage(intf, "Next");
     playlist_Next(sys->playlist);
   } else if(strcmp(cmd, "prev") == 0) {
-    msg_Info(intf, "Prev");    
+    msg_Info(intf, "Prev");
+    SendMessage(intf, "Next");    
     playlist_Prev(sys->playlist);
   } else if(strcmp(cmd, "clear") == 0) {
     msg_Info(intf, "Clear");
+    SendMessage(intf, "Clear");
     playlist_Stop(sys->playlist);
     playlist_Clear(sys->playlist, pl_Unlocked);
   }
@@ -516,6 +525,16 @@ int SplitString(char* str, char *delim, char *chs[], int max_size) {
     i++;
   }
   return i;
+}
+
+void SendMessage(void *handle, char *message) {
+    intf_thread_t *intf = (intf_thread_t*)handle;
+    intf_sys_t *sys = intf->p_sys;
+    SendBufferAppend(intf, (char*)"PRIVMSG ");
+    SendBufferAppend(intf, sys->channel);
+    SendBufferAppend(intf, (char*)" :");
+    SendBufferAppend(intf, message);
+    SendBufferAppend(intf, (char*)"\r\n");
 }
 
 /*
