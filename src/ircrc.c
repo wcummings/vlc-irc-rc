@@ -80,7 +80,7 @@ vlc_module_begin()
     add_string("server", NULL, "server", "IRC server", true)
     add_string("channel", NULL, "channel", "IRC channel", true)
     add_string("nick", NULL, "nick", "IRC nickname", true)
-vlc_module_end ()
+vlc_module_end()
 
 static int Open(vlc_object_t *obj)
 {
