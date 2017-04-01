@@ -427,31 +427,33 @@ static void RegisterCallbacks(intf_thread_t *intf)
 static int Playlist(vlc_object_t *obj, char const *cmd,
                     vlc_value_t oldval, vlc_value_t newval, void *p_data)
 {
+  VLC_UNUSED(oldval);
+  VLC_UNUSED(p_data);
   intf_thread_t *intf = (intf_thread_t*)obj;
   intf_sys_t *sys = intf->p_sys;
 
   playlist_t *playlist = sys->playlist;
   input_thread_t * input = playlist_CurrentInput(playlist);
   int state;
+  int has_state = 0;
 
   if(input) {
     state = var_GetInteger(input, "state");
     vlc_object_release(input);
-  } else {
-    return VLC_EGENERIC;
-  }
+    has_state = 1;
+  } 
 
   if(strcmp(cmd, "pause") == 0) {
-    msg_Info(intf, "Pause");    
-    if(state == PLAYING_S) {
+    if(has_state && state == PLAYING_S) {
       playlist_Pause(sys->playlist);
-      SendMessage(intf, "Paused");
+      msg_Info(intf, "Pause");          
+      SendMessage(intf, (char*)"Paused");
     }
   } else if(strcmp(cmd, "play") == 0) {
     msg_Info(intf, "Play");
-    if(state != PLAYING_S) {
+    if(has_state && state != PLAYING_S) {
       playlist_Play(sys->playlist);
-      SendMessage(intf, "Playing");
+      SendMessage(intf, (char*)"Playing");
     }
   } else if(strcmp(cmd, "enqueue") == 0 && newval.psz_string && *newval.psz_string) {
     input_item_t *p_item = parse_MRL(newval.psz_string);
@@ -462,19 +464,19 @@ static int Playlist(vlc_object_t *obj, char const *cmd,
 			    pl_Unlocked ) != VLC_SUCCESS) {
 	return VLC_EGENERIC;
       }
-      SendMessage(intf, "Enqueued");
+      SendMessage(intf,  (char*)"Enqueued");
     }
   } else if(strcmp(cmd, "next") == 0) {
     msg_Info(intf, "Next");
-    SendMessage(intf, "Next");
+    SendMessage(intf,  (char*)"Next");
     playlist_Next(sys->playlist);
   } else if(strcmp(cmd, "prev") == 0) {
     msg_Info(intf, "Prev");
-    SendMessage(intf, "Next");    
+    SendMessage(intf,  (char*)"Next");    
     playlist_Prev(sys->playlist);
   } else if(strcmp(cmd, "clear") == 0) {
     msg_Info(intf, "Clear");
-    SendMessage(intf, "Clear");
+    SendMessage(intf,  (char*)"Clear");
     playlist_Stop(sys->playlist);
     playlist_Clear(sys->playlist, pl_Unlocked);
   }
