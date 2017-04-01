@@ -55,6 +55,7 @@ static void Close(vlc_object_t *);
 void EventLoop(int, void *);
 int HandleRead(void *);
 int HandleWrite(void *);
+size_t PendingWriteSize(void *handle);
 void LineReceived(void *, char *);
 void irc_PING(void *, struct irc_msg_t *);
 void irc_PRIVMSG(void *handle, struct irc_msg_t *irc_msg);
@@ -194,11 +195,16 @@ void EventLoop(int fd, void *handle)
   sys->line = (char *)malloc(MAX_LINE * sizeof(char));
 
   while(1) {
-    struct pollfd ufd = { .fd = fd, .events = POLLIN | POLLOUT, };
+    short events = POLLIN;
+    if (PendingWriteSize(handle) > 0) {
+      events |= POLLOUT;
+    }
+    
+    struct pollfd ufd = { .fd = fd, .events = events, };
     
     if(poll(&ufd, 1, 1000) <= 0) /* block for 1s so we don't spin */
       continue;
-    
+
     if(ufd.revents & POLLIN) {
       int rv = HandleRead(handle);
       if(rv != 0) {
@@ -243,6 +249,16 @@ int HandleRead(void *handle) {
   return 0;
 }
 
+size_t PendingWriteSize(void *handle) {
+  intf_thread_t *intf = (intf_thread_t*)handle;
+  intf_sys_t *sys = intf->p_sys;
+  
+  struct circular_buffer* send_buffer = sys->send_buffer;
+
+  size_t send_len = (send_buffer->tail > send_buffer->head) ? (SEND_BUFFER_LEN - (long)send_buffer->tail) : (send_buffer->head - send_buffer->tail);
+  return send_len;
+}
+
 int HandleWrite(void *handle)
 {
   intf_thread_t *intf = (intf_thread_t*)handle;
@@ -250,7 +266,7 @@ int HandleWrite(void *handle)
   
   struct circular_buffer* send_buffer = sys->send_buffer;
 
-  size_t send_len = (send_buffer->tail > send_buffer->head) ? (SEND_BUFFER_LEN - (long)send_buffer->tail) : (send_buffer->head - send_buffer->tail);
+  size_t send_len = PendingWriteSize(handle);
 
   int sent = send(sys->fd, send_buffer->tail, send_len, 0);
 
