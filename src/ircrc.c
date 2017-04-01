@@ -393,14 +393,14 @@ struct irc_msg_t *ParseIRC(char *line) {
 
   o = IndexOf(line, ':');
   if(o == -1) { /* No trailing */
-    irc_msg->params = (char*)malloc(sizeof(char) * strlen(line) + 1);
+    irc_msg->params = (char*)malloc(sizeof(char) * (strlen(line) + 1));
     strcpy(irc_msg->params, line);
   } else {
     irc_msg->params = (char*)malloc(sizeof(char) * (o + 1));
     strncpy(irc_msg->params, line, o);
     irc_msg->params[o] = '\0';
     line += o + 1;
-    irc_msg->trailing = (char*)malloc(sizeof(char) * strlen(line) + 1);
+    irc_msg->trailing = (char*)malloc(sizeof(char) * (strlen(line) + 1));
     strcpy(irc_msg->trailing, line);
   }
 
