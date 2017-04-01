@@ -70,6 +70,7 @@ void FreeIRCMsg(struct irc_msg_t *irc_msg);
 int SplitString(char* str, char *delim, char *chs[], int max_size);
 void SendMessage(void *handle, char *message);
 static input_item_t *parse_MRL( const char *mrl );
+static void SendPlaylist( intf_thread_t *p_intf, playlist_item_t *p_item, int i_level );
 
 vlc_module_begin()
     set_shortname("IRC")
@@ -421,6 +422,7 @@ static void RegisterCallbacks(intf_thread_t *intf)
       ADD("next", VOID, Playlist)
       ADD("prev", VOID, Playlist)
       ADD("clear", VOID, Playlist)
+      ADD("playlist", VOID, Playlist)
 #undef ADD
 }
 
@@ -479,6 +481,10 @@ static int Playlist(vlc_object_t *obj, char const *cmd,
     SendMessage(intf,  (char*)"Clear");
     playlist_Stop(sys->playlist);
     playlist_Clear(sys->playlist, pl_Unlocked);
+  } else if(strcmp(cmd, "playlist") == 0) {
+    SendMessage(intf, (char*)"+----[ Playlist ]");
+    SendPlaylist(intf, sys->playlist->p_root_category, 0);
+    SendMessage(intf, (char*)"+----[ End of playlist ]");
   }
 
   return VLC_SUCCESS;
@@ -633,4 +639,26 @@ static input_item_t *parse_MRL( const char *mrl )
     free( psz_orig );
 
     return p_item;
+}
+
+static void SendPlaylist( intf_thread_t *p_intf, playlist_item_t *p_item, int i_level )
+{
+    int i;
+    char psz_buffer[MSTRTIME_MAX_SIZE];
+    char line_buffer[MAX_LINE];
+    for( i = 0; i< p_item->i_children; i++ )
+    {
+        if( p_item->pp_children[i]->p_input->i_duration != -1 )
+        {
+            secstotimestr( psz_buffer, p_item->pp_children[i]->p_input->i_duration / 1000000 );
+	    snprintf( line_buffer, sizeof(char) * MAX_LINE, "|%*s- %s (%s)", 2 * i_level, "", p_item->pp_children[i]->p_input->psz_name, psz_buffer );
+        }
+        else
+            snprintf( line_buffer, sizeof(char) * MAX_LINE, "|%*s- %s", 2 * i_level, "", p_item->pp_children[i]->p_input->psz_name );
+
+	SendMessage(p_intf, line_buffer);
+	
+        if( p_item->pp_children[i]->i_children >= 0 )
+            SendPlaylist( p_intf, p_item->pp_children[i], i_level + 1 );
+    }
 }
