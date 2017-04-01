@@ -453,7 +453,7 @@ static int Playlist(vlc_object_t *obj, char const *cmd,
     }
   } else if(strcmp(cmd, "play") == 0) {
     msg_Info(intf, "Play");
-    if(has_state && state != PLAYING_S) {
+    if(!has_state || state != PLAYING_S) {
       playlist_Play(sys->playlist);
       SendMessage(intf, (char*)"Playing");
     }
@@ -477,8 +477,8 @@ static int Playlist(vlc_object_t *obj, char const *cmd,
     SendMessage(intf,  (char*)"Next");    
     playlist_Prev(sys->playlist);
   } else if(strcmp(cmd, "clear") == 0) {
-    msg_Info(intf, "Clear");
-    SendMessage(intf,  (char*)"Clear");
+    msg_Info(intf, "Cleared");
+    SendMessage(intf,  (char*)"Cleared");
     playlist_Stop(sys->playlist);
     playlist_Clear(sys->playlist, pl_Unlocked);
   } else if(strcmp(cmd, "playlist") == 0) {
