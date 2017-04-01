@@ -61,7 +61,7 @@ void irc_PRIVMSG(void *handle, struct irc_msg_t *irc_msg);
 void SendBufferAppend(void *, char *);
 void ResizeSendBuffer(void *);
 int IndexOf(char *, char);
-struct irc_msg_t *ParseIRC(char *, intf_thread_t *intf);
+struct irc_msg_t *ParseIRC(char *);
 void SendBufferInit(vlc_object_t *obj);
 static void *Run(void *);
 static int Playlist(vlc_object_t *, char const *, vlc_value_t, vlc_value_t, void *);
@@ -272,9 +272,9 @@ void LineReceived(void *handle, char *line)
   intf_thread_t *intf = (intf_thread_t*)handle;
   intf_sys_t *sys = intf->p_sys;
 
-  msg_Info(intf, "Line received: %s", line);
+  msg_Dbg(intf, "Line received: %s", line);
 
-  struct irc_msg_t *irc_msg = ParseIRC(line, intf);
+  struct irc_msg_t *irc_msg = ParseIRC(line);
 
   if(irc_msg == NULL) {
     msg_Dbg(intf, "Malformed IRC message: %s", line);
@@ -360,7 +360,7 @@ int IndexOf(char *s, char d) {
   return offset;
 }
 
-struct irc_msg_t *ParseIRC(char *line, intf_thread_t *intf) {
+struct irc_msg_t *ParseIRC(char *line) {
   struct irc_msg_t *irc_msg = (struct irc_msg_t *)malloc(sizeof(struct irc_msg_t));
   irc_msg->prefix = irc_msg->command = irc_msg->params = irc_msg->trailing = NULL;
 
