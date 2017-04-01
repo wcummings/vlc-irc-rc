@@ -439,6 +439,7 @@ static void RegisterCallbacks(intf_thread_t *intf)
       ADD("prev", VOID, Playlist)
       ADD("clear", VOID, Playlist)
       ADD("playlist", VOID, Playlist)
+      ADD("status", VOID, Playlist)	
 #undef ADD
 }
 
@@ -453,7 +454,7 @@ static int Playlist(vlc_object_t *obj, char const *cmd,
   playlist_t *playlist = sys->playlist;
   input_thread_t * input = playlist_CurrentInput(playlist);
   int state;
-  int has_state = 0;
+  int has_state = 0;  
 
   if(input) {
     state = var_GetInteger(input, "state");
@@ -501,6 +502,39 @@ static int Playlist(vlc_object_t *obj, char const *cmd,
     SendMessage(intf, (char*)"+----[ Playlist ]");
     SendPlaylist(intf, sys->playlist->p_root_category, 0);
     SendMessage(intf, (char*)"+----[ End of playlist ]");
+  } else if(strcmp(cmd, "status") == 0) {
+    input_thread_t *input = playlist_CurrentInput(playlist);
+    if (input) {
+      char *psz_uri = input_item_GetURI( input_GetItem( input ) );
+      vlc_object_release( input );
+      if(psz_uri != NULL) {
+	char line[MAX_LINE];
+	snprintf(line, sizeof(char) * MAX_LINE, "Now playing: %s", psz_uri);
+	SendMessage(intf, line);
+	free(psz_uri);
+      }
+    }
+
+    int status;
+    /* FIXME: use standard naming so PL_LOCK macros work */
+    playlist_Lock(sys->playlist);
+    status = playlist_Status(sys->playlist);
+    playlist_Unlock(sys->playlist);
+    switch( status )
+      {
+      case PLAYLIST_STOPPED:
+	SendMessage(intf, (char*)"State: Stopped");
+	break;
+      case PLAYLIST_RUNNING:
+	SendMessage(intf, (char*)"State: Playing");	
+	break;
+      case PLAYLIST_PAUSED:
+	SendMessage(intf, (char*)"State: Paused");
+	break;
+      default:
+	SendMessage(intf, (char*)"State: Unknown");	
+	break;
+      }
   }
 
   return VLC_SUCCESS;
@@ -553,13 +587,13 @@ int SplitString(char* str, char *delim, char *chs[], int max_size) {
 }
 
 void SendMessage(void *handle, char *message) {
-    intf_thread_t *intf = (intf_thread_t*)handle;
-    intf_sys_t *sys = intf->p_sys;
-    SendBufferAppend(intf, (char*)"PRIVMSG ");
-    SendBufferAppend(intf, sys->channel);
-    SendBufferAppend(intf, (char*)" :");
-    SendBufferAppend(intf, message);
-    SendBufferAppend(intf, (char*)"\r\n");
+  intf_thread_t *intf = (intf_thread_t*)handle;
+  intf_sys_t *sys = intf->p_sys;
+  SendBufferAppend(intf, (char*)"PRIVMSG ");
+  SendBufferAppend(intf, sys->channel);
+  SendBufferAppend(intf, (char*)" :");
+  SendBufferAppend(intf, message);
+  SendBufferAppend(intf, (char*)"\r\n");
 }
 
 /*
